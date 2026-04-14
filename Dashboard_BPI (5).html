@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard BPI — Evidencias</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a2e}
+header{background:#1f3a6b;color:#fff;padding:16px 28px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+header h1{font-size:17px;font-weight:600}
+header .sub{font-size:11px;opacity:.72;margin-top:3px}
+.container{max-width:1400px;margin:0 auto;padding:20px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:22px}
+.kpi{background:#fff;border-radius:10px;padding:14px 12px;box-shadow:0 1px 4px rgba(0,0,0,.08);text-align:center}
+.kpi-val{font-size:26px;font-weight:700;line-height:1}
+.kpi-lbl{font-size:10px;color:#777;margin-top:5px;line-height:1.3}
+.tabs{display:flex;gap:3px;border-bottom:2px solid #dde1e8;margin-bottom:20px;flex-wrap:wrap}
+.tab{padding:9px 18px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:transparent;color:#777;border-radius:6px 6px 0 0;transition:all .15s}
+.tab:hover{background:#e8f0fe;color:#1f3a6b}
+.tab.active{background:#fff;color:#1f3a6b;border:2px solid #dde1e8;border-bottom:2px solid #fff;margin-bottom:-2px}
+.panel{display:none}.panel.active{display:block}
+.card{background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.07);margin-bottom:18px}
+.sec{font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:680px){.row2{grid-template-columns:1fr}}
+.filter-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.filter-row label{font-size:12px;color:#555;font-weight:500}
+select{font-size:12px;padding:6px 10px;border-radius:7px;border:1px solid #cdd3db;background:#fff;color:#1a1a2e;cursor:pointer}
+select:focus{outline:none;border-color:#1f3a6b}
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:#555}
+.lsq{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+.chart-wrap{position:relative;width:100%}
+.tbl-wrap{overflow-x:auto;margin-top:10px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{font-weight:600;color:#666;padding:9px 11px;text-align:left;border-bottom:2px solid #eaedf0;background:#f8f9fb;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+td{padding:8px 11px;border-bottom:1px solid #f0f2f5}
+tr:hover td{background:#f8f9fb}
+.ok{background:#c6efce;color:#276221;display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.mid{background:#ffeb9c;color:#7d6608;display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.bad{background:#ffc7ce;color:#9c0006;display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Dashboard BPI — Análisis de Evidencias</h1>
+    <div class="sub">Período: 2026-04-10 al 2026-04-12 &nbsp;|&nbsp; App Status = Aprobada &nbsp;|&nbsp; Excluye PENDIENTE FORMALIZAR</div>
+  </div>
+</header>
+
+<div class="container">
+  <div class="kpis" id="kpis"></div>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('general',this)">General</button>
+    <button class="tab" onclick="showTab('region',this)">Por región</button>
+    <button class="tab" onclick="showTab('evolucion',this)">Evolución diaria</button>
+    <button class="tab" onclick="showTab('sedes',this)">Sedes</button>
+    <button class="tab" onclick="showTab('productos',this)">Productos</button>
+  </div>
+
+  <!-- GENERAL -->
+  <div id="general" class="panel active">
+    <div class="row2">
+      <div class="card"><div class="sec">Evidencia QR — distribución global</div><div class="legend" id="leg-qr"></div><div class="chart-wrap" style="height:230px"><canvas id="c-qr"></canvas></div></div>
+      <div class="card"><div class="sec">Evidencia WhatsApp — distribución global</div><div class="legend" id="leg-wa"></div><div class="chart-wrap" style="height:230px"><canvas id="c-wa"></canvas></div></div>
+    </div>
+    <div class="card"><div class="sec">Registros y evidencias correctas por fecha</div><div class="chart-wrap" style="height:220px"><canvas id="c-gen-bar"></canvas></div></div>
+  </div>
+
+  <!-- REGIÓN -->
+  <div id="region" class="panel">
+    <div class="card"><div class="sec">% correctas por región — Evidencia QR vs Evidencia WhatsApp</div><div class="chart-wrap" style="height:330px"><canvas id="c-reg-bar"></canvas></div></div>
+    <div class="card"><div class="sec">Tabla resumen por región</div><div class="tbl-wrap"><table id="t-reg"></table></div></div>
+  </div>
+
+  <!-- EVOLUCIÓN -->
+  <div id="evolucion" class="panel">
+    <div class="card">
+      <div class="filter-row">
+        <label>Región:</label><select id="sel-reg" onchange="renderEvol()"></select>
+        <label>Evidencia:</label>
+        <select id="sel-met" onchange="renderEvol()">
+          <option value="qr">Evidencia QR</option>
+          <option value="wa">Evidencia WhatsApp</option>
+        </select>
+      </div>
+      <div class="sec">Evolución diaria por clasificación</div>
+      <div class="chart-wrap" style="height:270px"><canvas id="c-evol"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="sec">Comparativa % correctas entre regiones</div>
+      <div class="filter-row">
+        <label>Fecha:</label>
+        <select id="sel-fecha" onchange="renderComp()">
+          <option value="2026-04-10">10 abr</option>
+          <option value="2026-04-11">11 abr</option>
+          <option value="2026-04-12">12 abr</option>
+        </select>
+        <label>Evidencia:</label>
+        <select id="sel-met2" onchange="renderComp()">
+          <option value="qr">Evidencia QR</option>
+          <option value="wa">Evidencia WhatsApp</option>
+        </select>
+      </div>
+      <div class="chart-wrap" style="height:270px"><canvas id="c-comp"></canvas></div>
+    </div>
+  </div>
+
+  <!-- SEDES -->
+  <div id="sedes" class="panel">
+    <div class="card">
+      <div class="filter-row"><label>Región:</label><select id="sel-reg-sede" onchange="renderSedes()"></select></div>
+      <div class="sec">% correctas por sede</div>
+      <div class="chart-wrap" id="sede-wrap" style="height:300px"><canvas id="c-sede"></canvas></div>
+    </div>
+    <div class="card"><div class="sec">Tabla de sedes</div><div class="tbl-wrap"><table id="t-sede"></table></div></div>
+  </div>
+
+  <!-- PRODUCTOS -->
+  <div id="productos" class="panel">
+    <div class="row2">
+      <div class="card"><div class="sec">Evidencia QR por producto</div><div class="chart-wrap" style="height:260px"><canvas id="c-pqr"></canvas></div></div>
+      <div class="card"><div class="sec">Evidencia WhatsApp por producto</div><div class="chart-wrap" style="height:260px"><canvas id="c-pwa"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Registrar plugin de datalabels ──
+Chart.register(ChartDataLabels);
+
+const D = {"fechas": ["2026-04-10", "2026-04-11", "2026-04-12"], "regiones": ["1.0", "11.0", "13.0", "14.0", "15.0", "16.0", "19.0", "2.0", "20.0", "21.0", "22.0", "23.0", "3.0", "4.1", "4.2", "5.0", "8.0", "9.0"], "general": {"2026-04-10": {"total": 228, "qr": {"Correcta": 184, "Promotor no subió evidencia": 42, "Cliente no llenó la encuesta": 1, "Error/No subida": 1}, "wa": {"Promotor no subió evidencia": 124, "Correcta": 103, "Sin evidencia (razón no especificada)": 1}}, "2026-04-11": {"total": 268, "qr": {"Correcta": 238, "Promotor no subió evidencia": 30}, "wa": {"Correcta": 205, "Sin evidencia (razón no especificada)": 37, "Promotor no subió evidencia": 15, "Evidencia errónea": 11}}, "2026-04-12": {"total": 372, "qr": {"Correcta": 334, "Promotor no subió evidencia": 37, "Evidencia errónea": 1}, "wa": {"Correcta": 326, "Promotor no subió evidencia": 45, "Evidencia errónea": 1}}}, "por_region": {"1.0": {"2026-04-10": {"total": 6, "qr": {"Correcta": 4, "Promotor no subió evidencia": 2}, "wa": {"Promotor no subió evidencia": 5, "Correcta": 1}}, "2026-04-11": {"total": 5, "qr": {"Correcta": 3, "Promotor no subió evidencia": 2}, "wa": {"Sin evidencia (razón no especificada)": 3, "Promotor no subió evidencia": 2}}, "2026-04-12": {"total": 6, "qr": {"Correcta": 5, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 3, "Promotor no subió evidencia": 2, "Evidencia errónea": 1}}}, "11.0": {"2026-04-10": {"total": 11, "qr": {"Correcta": 9, "Promotor no subió evidencia": 2}, "wa": {"Correcta": 6, "Promotor no subió evidencia": 5}}, "2026-04-11": {"total": 16, "qr": {"Correcta": 16}, "wa": {"Correcta": 16}}, "2026-04-12": {"total": 30, "qr": {"Correcta": 30}, "wa": {"Correcta": 29, "Promotor no subió evidencia": 1}}}, "13.0": {"2026-04-10": {"total": 30, "qr": {"Correcta": 28, "Promotor no subió evidencia": 2}, "wa": {"Correcta": 21, "Promotor no subió evidencia": 9}}, "2026-04-11": {"total": 34, "qr": {"Correcta": 33, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 29, "Evidencia errónea": 2, "Promotor no subió evidencia": 2, "Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 49, "qr": {"Correcta": 41, "Promotor no subió evidencia": 8}, "wa": {"Correcta": 38, "Promotor no subió evidencia": 11}}}, "14.0": {"2026-04-10": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-11": {"total": 5, "qr": {"Correcta": 5}, "wa": {"Correcta": 4, "Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 6, "qr": {"Correcta": 6}, "wa": {"Correcta": 6}}}, "15.0": {"2026-04-10": {"total": 3, "qr": {"Promotor no subió evidencia": 2, "Correcta": 1}, "wa": {"Promotor no subió evidencia": 2, "Correcta": 1}}, "2026-04-11": {"total": 8, "qr": {"Correcta": 7, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 6, "Sin evidencia (razón no especificada)": 2}}, "2026-04-12": {"total": 13, "qr": {"Correcta": 12, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 11, "Promotor no subió evidencia": 2}}}, "16.0": {"2026-04-10": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}, "2026-04-11": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-12": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 4}}}, "19.0": {"2026-04-10": {"total": 15, "qr": {"Promotor no subió evidencia": 11, "Correcta": 4}, "wa": {"Promotor no subió evidencia": 13, "Correcta": 2}}, "2026-04-11": {"total": 8, "qr": {"Correcta": 5, "Promotor no subió evidencia": 3}, "wa": {"Correcta": 5, "Sin evidencia (razón no especificada)": 3}}, "2026-04-12": {"total": 22, "qr": {"Correcta": 12, "Promotor no subió evidencia": 10}, "wa": {"Correcta": 12, "Promotor no subió evidencia": 10}}}, "2.0": {"2026-04-10": {"total": 11, "qr": {"Correcta": 11}, "wa": {"Correcta": 6, "Promotor no subió evidencia": 5}}, "2026-04-11": {"total": 17, "qr": {"Correcta": 12, "Promotor no subió evidencia": 5}, "wa": {"Correcta": 11, "Sin evidencia (razón no especificada)": 4, "Promotor no subió evidencia": 2}}, "2026-04-12": {"total": 11, "qr": {"Correcta": 10, "Evidencia errónea": 1}, "wa": {"Correcta": 11}}}, "20.0": {"2026-04-10": {"total": 22, "qr": {"Correcta": 15, "Promotor no subió evidencia": 6, "Cliente no llenó la encuesta": 1}, "wa": {"Promotor no subió evidencia": 19, "Correcta": 2, "Sin evidencia (razón no especificada)": 1}}, "2026-04-11": {"total": 13, "qr": {"Correcta": 10, "Promotor no subió evidencia": 3}, "wa": {"Correcta": 11, "Sin evidencia (razón no especificada)": 2}}, "2026-04-12": {"total": 27, "qr": {"Correcta": 24, "Promotor no subió evidencia": 3}, "wa": {"Correcta": 24, "Promotor no subió evidencia": 3}}}, "21.0": {"2026-04-10": {"total": 12, "qr": {"Correcta": 10, "Promotor no subió evidencia": 2}, "wa": {"Promotor no subió evidencia": 9, "Correcta": 3}}, "2026-04-11": {"total": 12, "qr": {"Correcta": 11, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 10, "Sin evidencia (razón no especificada)": 2}}, "2026-04-12": {"total": 21, "qr": {"Correcta": 19, "Promotor no subió evidencia": 2}, "wa": {"Correcta": 19, "Promotor no subió evidencia": 2}}}, "22.0": {"2026-04-10": {"total": 12, "qr": {"Correcta": 8, "Promotor no subió evidencia": 3, "Error/No subida": 1}, "wa": {"Promotor no subió evidencia": 7, "Correcta": 5}}, "2026-04-11": {"total": 10, "qr": {"Correcta": 10}, "wa": {"Correcta": 9, "Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 16, "qr": {"Correcta": 13, "Promotor no subió evidencia": 3}, "wa": {"Correcta": 13, "Promotor no subió evidencia": 3}}}, "23.0": {"2026-04-10": {"total": 29, "qr": {"Correcta": 25, "Promotor no subió evidencia": 4}, "wa": {"Promotor no subió evidencia": 16, "Correcta": 13}}, "2026-04-11": {"total": 30, "qr": {"Correcta": 27, "Promotor no subió evidencia": 3}, "wa": {"Correcta": 24, "Sin evidencia (razón no especificada)": 4, "Promotor no subió evidencia": 1, "Evidencia errónea": 1}}, "2026-04-12": {"total": 32, "qr": {"Correcta": 31, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 31, "Promotor no subió evidencia": 1}}}, "3.0": {"2026-04-10": {"total": 11, "qr": {"Correcta": 10, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 7, "Promotor no subió evidencia": 4}}, "2026-04-11": {"total": 15, "qr": {"Correcta": 15}, "wa": {"Correcta": 13, "Evidencia errónea": 2}}, "2026-04-12": {"total": 16, "qr": {"Correcta": 16}, "wa": {"Correcta": 16}}}, "4.1": {"2026-04-10": {"total": 12, "qr": {"Correcta": 9, "Promotor no subió evidencia": 3}, "wa": {"Promotor no subió evidencia": 12}}, "2026-04-11": {"total": 24, "qr": {"Correcta": 19, "Promotor no subió evidencia": 5}, "wa": {"Correcta": 14, "Sin evidencia (razón no especificada)": 5, "Promotor no subió evidencia": 5}}, "2026-04-12": {"total": 28, "qr": {"Correcta": 25, "Promotor no subió evidencia": 3}, "wa": {"Correcta": 23, "Promotor no subió evidencia": 5}}}, "4.2": {"2026-04-10": {"total": 8, "qr": {"Correcta": 5, "Promotor no subió evidencia": 3}, "wa": {"Correcta": 5, "Promotor no subió evidencia": 3}}, "2026-04-11": {"total": 12, "qr": {"Correcta": 9, "Promotor no subió evidencia": 3}, "wa": {"Correcta": 8, "Sin evidencia (razón no especificada)": 4}}, "2026-04-12": {"total": 18, "qr": {"Correcta": 18}, "wa": {"Correcta": 18}}}, "5.0": {"2026-04-10": {"total": 6, "qr": {"Correcta": 5, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 4, "Promotor no subió evidencia": 2}}, "2026-04-11": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-12": {"total": 6, "qr": {"Correcta": 6}, "wa": {"Correcta": 6}}}, "8.0": {"2026-04-10": {"total": 29, "qr": {"Correcta": 29}, "wa": {"Correcta": 18, "Promotor no subió evidencia": 11}}, "2026-04-11": {"total": 42, "qr": {"Correcta": 40, "Promotor no subió evidencia": 2}, "wa": {"Correcta": 29, "Evidencia errónea": 6, "Sin evidencia (razón no especificada)": 4, "Promotor no subió evidencia": 3}}, "2026-04-12": {"total": 51, "qr": {"Correcta": 48, "Promotor no subió evidencia": 3}, "wa": {"Correcta": 47, "Promotor no subió evidencia": 4}}}, "9.0": {"2026-04-10": {"total": 6, "qr": {"Correcta": 6}, "wa": {"Correcta": 4, "Promotor no subió evidencia": 2}}, "2026-04-11": {"total": 13, "qr": {"Correcta": 12, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 12, "Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 16, "qr": {"Correcta": 14, "Promotor no subió evidencia": 2}, "wa": {"Correcta": 15, "Promotor no subió evidencia": 1}}}}, "por_region_total": {"1.0": {"total": 17, "qr": {"Correcta": 12, "Promotor no subió evidencia": 5}, "wa": {"Promotor no subió evidencia": 9, "Correcta": 4, "Sin evidencia (razón no especificada)": 3, "Evidencia errónea": 1}}, "11.0": {"total": 57, "qr": {"Correcta": 55, "Promotor no subió evidencia": 2}, "wa": {"Correcta": 51, "Promotor no subió evidencia": 6}}, "13.0": {"total": 113, "qr": {"Correcta": 102, "Promotor no subió evidencia": 11}, "wa": {"Correcta": 88, "Promotor no subió evidencia": 22, "Evidencia errónea": 2, "Sin evidencia (razón no especificada)": 1}}, "14.0": {"total": 13, "qr": {"Correcta": 13}, "wa": {"Correcta": 12, "Sin evidencia (razón no especificada)": 1}}, "15.0": {"total": 24, "qr": {"Correcta": 20, "Promotor no subió evidencia": 4}, "wa": {"Correcta": 18, "Promotor no subió evidencia": 4, "Sin evidencia (razón no especificada)": 2}}, "16.0": {"total": 9, "qr": {"Correcta": 9}, "wa": {"Correcta": 9}}, "19.0": {"total": 45, "qr": {"Promotor no subió evidencia": 24, "Correcta": 21}, "wa": {"Promotor no subió evidencia": 23, "Correcta": 19, "Sin evidencia (razón no especificada)": 3}}, "2.0": {"total": 39, "qr": {"Correcta": 33, "Promotor no subió evidencia": 5, "Evidencia errónea": 1}, "wa": {"Correcta": 28, "Promotor no subió evidencia": 7, "Sin evidencia (razón no especificada)": 4}}, "20.0": {"total": 62, "qr": {"Correcta": 49, "Promotor no subió evidencia": 12, "Cliente no llenó la encuesta": 1}, "wa": {"Correcta": 37, "Promotor no subió evidencia": 22, "Sin evidencia (razón no especificada)": 3}}, "21.0": {"total": 45, "qr": {"Correcta": 40, "Promotor no subió evidencia": 5}, "wa": {"Correcta": 32, "Promotor no subió evidencia": 11, "Sin evidencia (razón no especificada)": 2}}, "22.0": {"total": 38, "qr": {"Correcta": 31, "Promotor no subió evidencia": 6, "Error/No subida": 1}, "wa": {"Correcta": 27, "Promotor no subió evidencia": 10, "Sin evidencia (razón no especificada)": 1}}, "23.0": {"total": 91, "qr": {"Correcta": 83, "Promotor no subió evidencia": 8}, "wa": {"Correcta": 68, "Promotor no subió evidencia": 18, "Sin evidencia (razón no especificada)": 4, "Evidencia errónea": 1}}, "3.0": {"total": 42, "qr": {"Correcta": 41, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 36, "Promotor no subió evidencia": 4, "Evidencia errónea": 2}}, "4.1": {"total": 64, "qr": {"Correcta": 53, "Promotor no subió evidencia": 11}, "wa": {"Correcta": 37, "Promotor no subió evidencia": 22, "Sin evidencia (razón no especificada)": 5}}, "4.2": {"total": 38, "qr": {"Correcta": 32, "Promotor no subió evidencia": 6}, "wa": {"Correcta": 31, "Sin evidencia (razón no especificada)": 4, "Promotor no subió evidencia": 3}}, "5.0": {"total": 14, "qr": {"Correcta": 13, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 12, "Promotor no subió evidencia": 2}}, "8.0": {"total": 122, "qr": {"Correcta": 117, "Promotor no subió evidencia": 5}, "wa": {"Correcta": 94, "Promotor no subió evidencia": 18, "Evidencia errónea": 6, "Sin evidencia (razón no especificada)": 4}}, "9.0": {"total": 35, "qr": {"Correcta": 32, "Promotor no subió evidencia": 3}, "wa": {"Correcta": 31, "Promotor no subió evidencia": 3, "Sin evidencia (razón no especificada)": 1}}}, "por_sede": {"1.0|2304|WM Mexicali": {"region": "1.0", "determinante": "2304", "sede": "WM Mexicali", "total": 3, "qr": {"Correcta": 3}, "wa": {"Promotor no subió evidencia": 2, "Correcta": 1}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Promotor no subió evidencia": 2}}, "2026-04-12": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}}}, "1.0|4026|WM Galerías Del Valle": {"region": "1.0", "determinante": "4026", "sede": "WM Galerías Del Valle", "total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 1, "Evidencia errónea": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-12": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Evidencia errónea": 1}}}}, "1.0|4728|SAMS Mexicali": {"region": "1.0", "determinante": "4728", "sede": "SAMS Mexicali", "total": 7, "qr": {"Correcta": 6, "Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 4, "Sin evidencia (razón no especificada)": 2, "Correcta": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 4, "qr": {"Correcta": 3, "Promotor no subió evidencia": 1}, "wa": {"Sin evidencia (razón no especificada)": 2, "Promotor no subió evidencia": 2}}, "2026-04-12": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 1, "Promotor no subió evidencia": 1}}}}, "1.0|4982|SAMS Macro Plaza": {"region": "1.0", "determinante": "4982", "sede": "SAMS Macro Plaza", "total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 1}}}}, "1.0|6510|WM Puerto Peñasco": {"region": "1.0", "determinante": "6510", "sede": "WM Puerto Peñasco", "total": 4, "qr": {"Promotor no subió evidencia": 3, "Correcta": 1}, "wa": {"Promotor no subió evidencia": 2, "Sin evidencia (razón no especificada)": 1, "Correcta": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 2, "qr": {"Promotor no subió evidencia": 1, "Correcta": 1}, "wa": {"Promotor no subió evidencia": 1, "Correcta": 1}}}}, "2.0|2049|WM Zaragoza": {"region": "2.0", "determinante": "2049", "sede": "WM Zaragoza", "total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-11": {"total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Sin evidencia (razón no especificada)": 1}}}}, "2.0|2089|WM Plaza Monumental": {"region": "2.0", "determinante": "2089", "sede": "WM Plaza Monumental", "total": 7, "qr": {"Correcta": 5, "Promotor no subió evidencia": 1, "Evidencia errónea": 1}, "wa": {"Correcta": 6, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-11": {"total": 2, "qr": {"Correcta": 1, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 1, "Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 2, "Evidencia errónea": 1}, "wa": {"Correcta": 3}}}}, "2.0|2377|WM Cd. Juarez": {"region": "2.0", "determinante": "2377", "sede": "WM Cd. Juarez", "total": 4, "qr": {"Correcta": 4}, "wa": {"Promotor no subió evidencia": 2, "Correcta": 2}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Promotor no subió evidencia": 2}}, "2026-04-11": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}}}, "2.0|5331|WM Porvenir Juarez": {"region": "2.0", "determinante": "5331", "sede": "WM Porvenir Juarez", "total": 5, "qr": {"Correcta": 4, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 3, "Promotor no subió evidencia": 1, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-11": {"total": 2, "qr": {"Correcta": 1, "Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 1, "Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}}}, "2.0|5764|WM Torres Del Sur": {"region": "2.0", "determinante": "5764", "sede": "WM Torres Del Sur", "total": 13, "qr": {"Correcta": 12, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 10, "Promotor no subió evidencia": 3}, "by_date": {"2026-04-10": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Promotor no subió evidencia": 2, "Correcta": 2}}, "2026-04-11": {"total": 6, "qr": {"Correcta": 5, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 5, "Promotor no subió evidencia": 1}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}}}, "2.0|6584|SAMS Cd. Juarez": {"region": "2.0", "determinante": "6584", "sede": "SAMS Cd. Juarez", "total": 9, "qr": {"Correcta": 8, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 7, "Promotor no subió evidencia": 1, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 4, "qr": {"Correcta": 3, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 3, "Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 4}}}}, "3.0|1205|WM Alijadores": {"region": "3.0", "determinante": "1205", "sede": "WM Alijadores", "total": 4, "qr": {"Correcta": 3, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 2, "Promotor no subió evidencia": 1, "Evidencia errónea": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Evidencia errónea": 1}}, "2026-04-12": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}}}, "3.0|1902|WM Arpto tampico": {"region": "3.0", "determinante": "1902", "sede": "WM Arpto tampico", "total": 6, "qr": {"Correcta": 6}, "wa": {"Correcta": 6}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-11": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}}}, "3.0|2378|WM Tampico": {"region": "3.0", "determinante": "2378", "sede": "WM Tampico", "total": 5, "qr": {"Correcta": 5}, "wa": {"Correcta": 4, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 2, "Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-12": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}}}, "3.0|3608|WM Playa miramar": {"region": "3.0", "determinante": "3608", "sede": "WM Playa miramar", "total": 1, "qr": {"Correcta": 1}, "wa": {"Evidencia errónea": 1}, "by_date": {"2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Evidencia errónea": 1}}}}, "3.0|4025|WM Cd Madero": {"region": "3.0", "determinante": "4025", "sede": "WM Cd Madero", "total": 11, "qr": {"Correcta": 11}, "wa": {"Correcta": 10, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 2, "Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}, "2026-04-12": {"total": 5, "qr": {"Correcta": 5}, "wa": {"Correcta": 5}}}}, "3.0|6577|SAMS Tampico": {"region": "3.0", "determinante": "6577", "sede": "SAMS Tampico", "total": 15, "qr": {"Correcta": 15}, "wa": {"Correcta": 14, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 2, "Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 7, "qr": {"Correcta": 7}, "wa": {"Correcta": 7}}, "2026-04-12": {"total": 5, "qr": {"Correcta": 5}, "wa": {"Correcta": 5}}}}, "4.1|1027|WM Sendero": {"region": "4.1", "determinante": "1027", "sede": "WM Sendero", "total": 6, "qr": {"Correcta": 5, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 4, "Promotor no subió evidencia": 2}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 3, "Promotor no subió evidencia": 1}}, "2026-04-12": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}}}, "4.1|2076|WM Miguel Aleman": {"region": "4.1", "determinante": "2076", "sede": "WM Miguel Aleman", "total": 2, "qr": {"Promotor no subió evidencia": 1, "Correcta": 1}, "wa": {"Promotor no subió evidencia": 1, "Correcta": 1}, "by_date": {"2026-04-12": {"total": 2, "qr": {"Promotor no subió evidencia": 1, "Correcta": 1}, "wa": {"Promotor no subió evidencia": 1, "Correcta": 1}}}}, "4.1|2179|WM San Nicolas": {"region": "4.1", "determinante": "2179", "sede": "WM San Nicolas", "total": 8, "qr": {"Correcta": 7, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 6, "Promotor no subió evidencia": 2}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 1, "Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 2}}, "2026-04-11": {"total": 5, "qr": {"Correcta": 5}, "wa": {"Correcta": 5}}, "2026-04-12": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}}}, "4.1|4138|WM Sc Villa Juarez": {"region": "4.1", "determinante": "4138", "sede": "WM Sc Villa Juarez", "total": 6, "qr": {"Correcta": 5, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 4, "Promotor no subió evidencia": 1, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 2, "qr": {"Promotor no subió evidencia": 1, "Correcta": 1}, "wa": {"Sin evidencia (razón no especificada)": 1, "Correcta": 1}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}}}, "4.1|4727|SAMS Universidad Mty": {"region": "4.1", "determinante": "4727", "sede": "SAMS Universidad Mty", "total": 5, "qr": {"Correcta": 3, "Promotor no subió evidencia": 2}, "wa": {"Correcta": 3, "Sin evidencia (razón no especificada)": 1, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-11": {"total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 4, "qr": {"Correcta": 3, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 3, "Promotor no subió evidencia": 1}}}}, "4.1|4809|WM Apodaca Norte": {"region": "4.1", "determinante": "4809", "sede": "WM Apodaca Norte", "total": 8, "qr": {"Correcta": 6, "Promotor no subió evidencia": 2}, "wa": {"Promotor no subió evidencia": 4, "Sin evidencia (razón no especificada)": 2, "Correcta": 2}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 5, "qr": {"Correcta": 3, "Promotor no subió evidencia": 2}, "wa": {"Promotor no subió evidencia": 3, "Sin evidencia (razón no especificada)": 2}}, "2026-04-12": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}}}, "4.1|5055|WM Concordia": {"region": "4.1", "determinante": "5055", "sede": "WM Concordia", "total": 7, "qr": {"Correcta": 6, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 4, "Promotor no subió evidencia": 3}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-12": {"total": 5, "qr": {"Correcta": 5}, "wa": {"Correcta": 4, "Promotor no subió evidencia": 1}}}}, "4.1|6204|SAMS San Nicolas": {"region": "4.1", "determinante": "6204", "sede": "SAMS San Nicolas", "total": 16, "qr": {"Correcta": 14, "Promotor no subió evidencia": 2}, "wa": {"Correcta": 8, "Promotor no subió evidencia": 7, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-10": {"total": 5, "qr": {"Correcta": 5}, "wa": {"Promotor no subió evidencia": 5}}, "2026-04-11": {"total": 4, "qr": {"Correcta": 3, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 3, "Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 7, "qr": {"Correcta": 6, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 5, "Promotor no subió evidencia": 2}}}}, "4.1|6835|WM Lomas de Anahuac": {"region": "4.1", "determinante": "6835", "sede": "WM Lomas de Anahuac", "total": 6, "qr": {"Correcta": 6}, "wa": {"Correcta": 5, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}}}, "4.2|1139|WM La Huasteca": {"region": "4.2", "determinante": "1139", "sede": "WM La Huasteca", "total": 4, "qr": {"Correcta": 3, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 3, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-11": {"total": 2, "qr": {"Promotor no subió evidencia": 1, "Correcta": 1}, "wa": {"Sin evidencia (razón no especificada)": 1, "Correcta": 1}}, "2026-04-12": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}}}, "4.2|1833|WM La Pastora": {"region": "4.2", "determinante": "1833", "sede": "WM La Pastora", "total": 5, "qr": {"Correcta": 5}, "wa": {"Correcta": 5}, "by_date": {"2026-04-10": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 4}}, "2026-04-12": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}}}, "4.2|2676|WM La Fe": {"region": "4.2", "determinante": "2676", "sede": "WM La Fe", "total": 4, "qr": {"Correcta": 3, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 3, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-11": {"total": 2, "qr": {"Correcta": 1, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 1, "Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}}}, "4.2|6229|SAMS Cumbres": {"region": "4.2", "determinante": "6229", "sede": "SAMS Cumbres", "total": 19, "qr": {"Correcta": 16, "Promotor no subió evidencia": 3}, "wa": {"Correcta": 16, "Promotor no subió evidencia": 2, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-10": {"total": 3, "qr": {"Promotor no subió evidencia": 2, "Correcta": 1}, "wa": {"Promotor no subió evidencia": 2, "Correcta": 1}}, "2026-04-11": {"total": 6, "qr": {"Correcta": 5, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 5, "Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 10, "qr": {"Correcta": 10}, "wa": {"Correcta": 10}}}}, "4.2|6392|SAMS Gonzalitos": {"region": "4.2", "determinante": "6392", "sede": "SAMS Gonzalitos", "total": 6, "qr": {"Correcta": 5, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 4, "Promotor no subió evidencia": 1, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Sin evidencia (razón no especificada)": 1, "Correcta": 1}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}}}, "5.0|8118|SAMS Aguascalientes": {"region": "5.0", "determinante": "8118", "sede": "SAMS Aguascalientes", "total": 14, "qr": {"Correcta": 13, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 12, "Promotor no subió evidencia": 2}, "by_date": {"2026-04-10": {"total": 6, "qr": {"Correcta": 5, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 4, "Promotor no subió evidencia": 2}}, "2026-04-11": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-12": {"total": 6, "qr": {"Correcta": 6}, "wa": {"Correcta": 6}}}}, "8.0|1169|WM Multiplaza Arboledas": {"region": "8.0", "determinante": "1169", "sede": "WM Multiplaza Arboledas", "total": 3, "qr": {"Correcta": 2, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 2, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-12": {"total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 1}}}}, "8.0|2041|WM Toltecas": {"region": "8.0", "determinante": "2041", "sede": "WM Toltecas", "total": 11, "qr": {"Correcta": 9, "Promotor no subió evidencia": 2}, "wa": {"Correcta": 8, "Promotor no subió evidencia": 2, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 4, "qr": {"Correcta": 3, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 3, "Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 6, "qr": {"Correcta": 5, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 5, "Promotor no subió evidencia": 1}}}}, "8.0|4901|SAMS Tepeyac": {"region": "8.0", "determinante": "4901", "sede": "SAMS Tepeyac", "total": 26, "qr": {"Correcta": 26}, "wa": {"Correcta": 24, "Promotor no subió evidencia": 2}, "by_date": {"2026-04-10": {"total": 5, "qr": {"Correcta": 5}, "wa": {"Correcta": 3, "Promotor no subió evidencia": 2}}, "2026-04-11": {"total": 8, "qr": {"Correcta": 8}, "wa": {"Correcta": 8}}, "2026-04-12": {"total": 13, "qr": {"Correcta": 13}, "wa": {"Correcta": 13}}}}, "8.0|4960|SAMS Tecámac": {"region": "8.0", "determinante": "4960", "sede": "SAMS Tecámac", "total": 15, "qr": {"Correcta": 15}, "wa": {"Correcta": 14, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 3, "Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 6, "qr": {"Correcta": 6}, "wa": {"Correcta": 6}}, "2026-04-12": {"total": 5, "qr": {"Correcta": 5}, "wa": {"Correcta": 5}}}}, "8.0|4968|SAMS Hiperplaza Texcoco": {"region": "8.0", "determinante": "4968", "sede": "SAMS Hiperplaza Texcoco", "total": 10, "qr": {"Correcta": 9, "Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 8, "Sin evidencia (razón no especificada)": 2}, "by_date": {"2026-04-10": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Promotor no subió evidencia": 3}}, "2026-04-11": {"total": 5, "qr": {"Correcta": 4, "Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 3, "Sin evidencia (razón no especificada)": 2}}, "2026-04-12": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Promotor no subió evidencia": 2}}}}, "8.0|4986|SAMS Periférico Cuautitlán": {"region": "8.0", "determinante": "4986", "sede": "SAMS Periférico Cuautitlán", "total": 19, "qr": {"Correcta": 19}, "wa": {"Correcta": 11, "Evidencia errónea": 5, "Promotor no subió evidencia": 2, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Promotor no subió evidencia": 2}}, "2026-04-11": {"total": 7, "qr": {"Correcta": 7}, "wa": {"Evidencia errónea": 5, "Sin evidencia (razón no especificada)": 1, "Correcta": 1}}, "2026-04-12": {"total": 10, "qr": {"Correcta": 10}, "wa": {"Correcta": 10}}}}, "8.0|6207|SAMS Cuautitlán Izcalli": {"region": "8.0", "determinante": "6207", "sede": "SAMS Cuautitlán Izcalli", "total": 9, "qr": {"Correcta": 9}, "wa": {"Correcta": 8, "Evidencia errónea": 1}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-11": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 2, "Evidencia errónea": 1}}, "2026-04-12": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 4}}}}, "8.0|6263|SAMS Puebla via capu": {"region": "8.0", "determinante": "6263", "sede": "SAMS Puebla via capu", "total": 20, "qr": {"Correcta": 20}, "wa": {"Correcta": 19, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 8, "qr": {"Correcta": 8}, "wa": {"Correcta": 7, "Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 6, "qr": {"Correcta": 6}, "wa": {"Correcta": 6}}, "2026-04-12": {"total": 6, "qr": {"Correcta": 6}, "wa": {"Correcta": 6}}}}, "8.0|6295|SAMS Portal Centro": {"region": "8.0", "determinante": "6295", "sede": "SAMS Portal Centro", "total": 8, "qr": {"Correcta": 7, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 7, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 1, "Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 2, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 3}}}}, "8.0|6520|WM Zaragoza Pantitlan": {"region": "8.0", "determinante": "6520", "sede": "WM Zaragoza Pantitlan", "total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}, "by_date": {"2026-04-12": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}}}, "9.0|6232|SAMS Ecatepec Centro": {"region": "9.0", "determinante": "6232", "sede": "SAMS Ecatepec Centro", "total": 7, "qr": {"Correcta": 5, "Promotor no subió evidencia": 2}, "wa": {"Correcta": 6, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-11": {"total": 4, "qr": {"Correcta": 3, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 3, "Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 2, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 3}}}}, "9.0|6243|SAMS La Raza": {"region": "9.0", "determinante": "6243", "sede": "SAMS La Raza", "total": 9, "qr": {"Correcta": 9}, "wa": {"Correcta": 9}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-11": {"total": 5, "qr": {"Correcta": 5}, "wa": {"Correcta": 5}}, "2026-04-12": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}}}, "9.0|6247|SAMS Multiplaza Aragon": {"region": "9.0", "determinante": "6247", "sede": "SAMS Multiplaza Aragon", "total": 8, "qr": {"Correcta": 8}, "wa": {"Correcta": 7, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Promotor no subió evidencia": 1, "Correcta": 1}}, "2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-12": {"total": 5, "qr": {"Correcta": 5}, "wa": {"Correcta": 5}}}}, "9.0|6287|SAMS Rio De Los Remedios": {"region": "9.0", "determinante": "6287", "sede": "SAMS Rio De Los Remedios", "total": 11, "qr": {"Correcta": 10, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 9, "Promotor no subió evidencia": 2}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Promotor no subió evidencia": 1, "Correcta": 1}}, "2026-04-11": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}, "2026-04-12": {"total": 6, "qr": {"Correcta": 5, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 5, "Promotor no subió evidencia": 1}}}}, "11.0|2731|WM El Molinito": {"region": "11.0", "determinante": "2731", "sede": "WM El Molinito", "total": 9, "qr": {"Correcta": 8, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 7, "Promotor no subió evidencia": 2}, "by_date": {"2026-04-10": {"total": 4, "qr": {"Correcta": 3, "Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 2, "Correcta": 2}}, "2026-04-11": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}}}, "11.0|4822|WM Cardenas Tulancingo": {"region": "11.0", "determinante": "4822", "sede": "WM Cardenas Tulancingo", "total": 9, "qr": {"Correcta": 9}, "wa": {"Correcta": 9}, "by_date": {"2026-04-11": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 4}}, "2026-04-12": {"total": 5, "qr": {"Correcta": 5}, "wa": {"Correcta": 5}}}}, "11.0|4946|SAMS Tulancingo": {"region": "11.0", "determinante": "4946", "sede": "SAMS Tulancingo", "total": 10, "qr": {"Correcta": 10}, "wa": {"Correcta": 9, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-11": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 4}}, "2026-04-12": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 3, "Promotor no subió evidencia": 1}}}}, "11.0|5089|WM San Martin Texmelucan": {"region": "11.0", "determinante": "5089", "sede": "WM San Martin Texmelucan", "total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 4}, "by_date": {"2026-04-11": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-12": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}}}, "11.0|6208|SAMS El Molinito": {"region": "11.0", "determinante": "6208", "sede": "SAMS El Molinito", "total": 12, "qr": {"Correcta": 12}, "wa": {"Correcta": 11, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 1, "Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-12": {"total": 9, "qr": {"Correcta": 9}, "wa": {"Correcta": 9}}}}, "11.0|6534|SAMS Pachuca": {"region": "11.0", "determinante": "6534", "sede": "SAMS Pachuca", "total": 13, "qr": {"Correcta": 12, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 11, "Promotor no subió evidencia": 2}, "by_date": {"2026-04-10": {"total": 3, "qr": {"Correcta": 2, "Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 2, "Correcta": 1}}, "2026-04-11": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}, "2026-04-12": {"total": 7, "qr": {"Correcta": 7}, "wa": {"Correcta": 7}}}}, "13.0|1684|WM Chilpancingo": {"region": "13.0", "determinante": "1684", "sede": "WM Chilpancingo", "total": 8, "qr": {"Correcta": 8}, "wa": {"Correcta": 7, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 3, "Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-12": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}}}, "13.0|2349|WM Acapulco": {"region": "13.0", "determinante": "2349", "sede": "WM Acapulco", "total": 10, "qr": {"Correcta": 10}, "wa": {"Correcta": 7, "Evidencia errónea": 2, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 5, "qr": {"Correcta": 5}, "wa": {"Correcta": 3, "Evidencia errónea": 2}}, "2026-04-12": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 4}}}}, "13.0|2446|WM Averanda": {"region": "13.0", "determinante": "2446", "sede": "WM Averanda", "total": 13, "qr": {"Correcta": 10, "Promotor no subió evidencia": 3}, "wa": {"Correcta": 7, "Promotor no subió evidencia": 5, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-10": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Promotor no subió evidencia": 2, "Correcta": 2}}, "2026-04-11": {"total": 4, "qr": {"Correcta": 3, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 3, "Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 5, "qr": {"Correcta": 3, "Promotor no subió evidencia": 2}, "wa": {"Promotor no subió evidencia": 3, "Correcta": 2}}}}, "13.0|3588|WM Paraiso Cuernavaca": {"region": "13.0", "determinante": "3588", "sede": "WM Paraiso Cuernavaca", "total": 14, "qr": {"Correcta": 12, "Promotor no subió evidencia": 2}, "wa": {"Correcta": 11, "Promotor no subió evidencia": 3}, "by_date": {"2026-04-10": {"total": 4, "qr": {"Correcta": 3, "Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 2, "Correcta": 2}}, "2026-04-11": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 4}}, "2026-04-12": {"total": 6, "qr": {"Correcta": 5, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 5, "Promotor no subió evidencia": 1}}}}, "13.0|4090|WM Los atrios": {"region": "13.0", "determinante": "4090", "sede": "WM Los atrios", "total": 14, "qr": {"Correcta": 14}, "wa": {"Correcta": 12, "Promotor no subió evidencia": 2}, "by_date": {"2026-04-10": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 2, "Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}, "2026-04-12": {"total": 8, "qr": {"Correcta": 8}, "wa": {"Correcta": 7, "Promotor no subió evidencia": 1}}}}, "13.0|4937|SAMS Chilpancingo": {"region": "13.0", "determinante": "4937", "sede": "SAMS Chilpancingo", "total": 7, "qr": {"Correcta": 5, "Promotor no subió evidencia": 2}, "wa": {"Promotor no subió evidencia": 6, "Correcta": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Promotor no subió evidencia": 2}}, "2026-04-12": {"total": 4, "qr": {"Correcta": 2, "Promotor no subió evidencia": 2}, "wa": {"Promotor no subió evidencia": 3, "Correcta": 1}}}}, "13.0|4973|SAMS Civac": {"region": "13.0", "determinante": "4973", "sede": "SAMS Civac", "total": 16, "qr": {"Correcta": 14, "Promotor no subió evidencia": 2}, "wa": {"Correcta": 14, "Promotor no subió evidencia": 2}, "by_date": {"2026-04-10": {"total": 5, "qr": {"Correcta": 5}, "wa": {"Correcta": 5}}, "2026-04-11": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}, "2026-04-12": {"total": 8, "qr": {"Correcta": 6, "Promotor no subió evidencia": 2}, "wa": {"Correcta": 6, "Promotor no subió evidencia": 2}}}}, "13.0|5239|WM Iguala de Independecia": {"region": "13.0", "determinante": "5239", "sede": "WM Iguala de Independecia", "total": 12, "qr": {"Correcta": 12}, "wa": {"Correcta": 12}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-11": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 4}}, "2026-04-12": {"total": 6, "qr": {"Correcta": 6}, "wa": {"Correcta": 6}}}}, "13.0|5727|WM Jiutepec": {"region": "13.0", "determinante": "5727", "sede": "WM Jiutepec", "total": 8, "qr": {"Correcta": 7, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 7, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 1, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 1, "Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}}}, "13.0|8127|SAMS Acapulco Farallon": {"region": "13.0", "determinante": "8127", "sede": "SAMS Acapulco Farallon", "total": 11, "qr": {"Correcta": 10, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 10, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 4}}, "2026-04-11": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 4}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 2, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 2, "Promotor no subió evidencia": 1}}}}, "14.0|3293|WM Blvd. Ruiz Cortinez": {"region": "14.0", "determinante": "3293", "sede": "WM Blvd. Ruiz Cortinez", "total": 6, "qr": {"Correcta": 6}, "wa": {"Correcta": 6}, "by_date": {"2026-04-11": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}}}, "14.0|4911|SAMS Villahermosa Guayabal": {"region": "14.0", "determinante": "4911", "sede": "SAMS Villahermosa Guayabal", "total": 7, "qr": {"Correcta": 7}, "wa": {"Correcta": 6, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-11": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Sin evidencia (razón no especificada)": 1, "Correcta": 1}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}}}, "15.0|4914|SAMS Tapachula": {"region": "15.0", "determinante": "4914", "sede": "SAMS Tapachula", "total": 16, "qr": {"Correcta": 14, "Promotor no subió evidencia": 2}, "wa": {"Correcta": 13, "Promotor no subió evidencia": 3}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Promotor no subió evidencia": 1, "Correcta": 1}, "wa": {"Promotor no subió evidencia": 1, "Correcta": 1}}, "2026-04-11": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 4}}, "2026-04-12": {"total": 10, "qr": {"Correcta": 9, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 8, "Promotor no subió evidencia": 2}}}}, "15.0|6563|SAMS Tuxtla Gutierrez": {"region": "15.0", "determinante": "6563", "sede": "SAMS Tuxtla Gutierrez", "total": 8, "qr": {"Correcta": 6, "Promotor no subió evidencia": 2}, "wa": {"Correcta": 5, "Sin evidencia (razón no especificada)": 2, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 4, "qr": {"Correcta": 3, "Promotor no subió evidencia": 1}, "wa": {"Sin evidencia (razón no especificada)": 2, "Correcta": 2}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}}}, "16.0|6227|SAMS Cozumel": {"region": "16.0", "determinante": "6227", "sede": "SAMS Cozumel", "total": 9, "qr": {"Correcta": 9}, "wa": {"Correcta": 9}, "by_date": {"2026-04-10": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}, "2026-04-11": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-12": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 4}}}}, "19.0|2080|WM Matehuala Arboledas": {"region": "19.0", "determinante": "2080", "sede": "WM Matehuala Arboledas", "total": 12, "qr": {"Promotor no subió evidencia": 8, "Correcta": 4}, "wa": {"Promotor no subió evidencia": 6, "Correcta": 4, "Sin evidencia (razón no especificada)": 2}, "by_date": {"2026-04-10": {"total": 5, "qr": {"Promotor no subió evidencia": 5}, "wa": {"Promotor no subió evidencia": 5}}, "2026-04-11": {"total": 3, "qr": {"Promotor no subió evidencia": 2, "Correcta": 1}, "wa": {"Sin evidencia (razón no especificada)": 2, "Correcta": 1}}, "2026-04-12": {"total": 4, "qr": {"Correcta": 3, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 3, "Promotor no subió evidencia": 1}}}}, "19.0|4545|WM Rio Verde": {"region": "19.0", "determinante": "4545", "sede": "WM Rio Verde", "total": 3, "qr": {"Promotor no subió evidencia": 2, "Correcta": 1}, "wa": {"Promotor no subió evidencia": 2, "Correcta": 1}, "by_date": {"2026-04-12": {"total": 3, "qr": {"Promotor no subió evidencia": 2, "Correcta": 1}, "wa": {"Promotor no subió evidencia": 2, "Correcta": 1}}}}, "19.0|5171|WM Cd. Valles Centro": {"region": "19.0", "determinante": "5171", "sede": "WM Cd. Valles Centro", "total": 2, "qr": {"Promotor no subió evidencia": 2}, "wa": {"Promotor no subió evidencia": 1, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Sin evidencia (razón no especificada)": 1}}}}, "19.0|5296|WM San Remo": {"region": "19.0", "determinante": "5296", "sede": "WM San Remo", "total": 3, "qr": {"Promotor no subió evidencia": 2, "Correcta": 1}, "wa": {"Promotor no subió evidencia": 2, "Correcta": 1}, "by_date": {"2026-04-12": {"total": 3, "qr": {"Promotor no subió evidencia": 2, "Correcta": 1}, "wa": {"Promotor no subió evidencia": 2, "Correcta": 1}}}}, "19.0|6206|SAMS San Luis Potosí": {"region": "19.0", "determinante": "6206", "sede": "SAMS San Luis Potosí", "total": 12, "qr": {"Correcta": 7, "Promotor no subió evidencia": 5}, "wa": {"Correcta": 7, "Promotor no subió evidencia": 5}, "by_date": {"2026-04-10": {"total": 3, "qr": {"Promotor no subió evidencia": 3}, "wa": {"Promotor no subió evidencia": 3}}, "2026-04-11": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}, "2026-04-12": {"total": 6, "qr": {"Correcta": 4, "Promotor no subió evidencia": 2}, "wa": {"Correcta": 4, "Promotor no subió evidencia": 2}}}}, "19.0|6213|SAMS Cd. Valles": {"region": "19.0", "determinante": "6213", "sede": "SAMS Cd. Valles", "total": 7, "qr": {"Correcta": 4, "Promotor no subió evidencia": 3}, "wa": {"Promotor no subió evidencia": 4, "Correcta": 3}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 1, "Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 2}}, "2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-12": {"total": 4, "qr": {"Correcta": 2, "Promotor no subió evidencia": 2}, "wa": {"Correcta": 2, "Promotor no subió evidencia": 2}}}}, "19.0|6242|SAMS Carretera 57": {"region": "19.0", "determinante": "6242", "sede": "SAMS Carretera 57", "total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-12": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}}}, "19.0|6482|WM Glorieta San Luis": {"region": "19.0", "determinante": "6482", "sede": "WM Glorieta San Luis", "total": 3, "qr": {"Promotor no subió evidencia": 2, "Correcta": 1}, "wa": {"Promotor no subió evidencia": 3}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Promotor no subió evidencia": 1, "Correcta": 1}, "wa": {"Promotor no subió evidencia": 2}}, "2026-04-12": {"total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 1}}}}, "20.0|1512|WM Tercer Anillo": {"region": "20.0", "determinante": "1512", "sede": "WM Tercer Anillo", "total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}, "by_date": {"2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-12": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}}}, "20.0|4546|WM Zacatecas": {"region": "20.0", "determinante": "4546", "sede": "WM Zacatecas", "total": 13, "qr": {"Correcta": 11, "Promotor no subió evidencia": 2}, "wa": {"Correcta": 7, "Promotor no subió evidencia": 6}, "by_date": {"2026-04-10": {"total": 6, "qr": {"Correcta": 4, "Promotor no subió evidencia": 2}, "wa": {"Promotor no subió evidencia": 6}}, "2026-04-11": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 4}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}}}, "20.0|4936|SAMS Uruapan": {"region": "20.0", "determinante": "4936", "sede": "SAMS Uruapan", "total": 5, "qr": {"Correcta": 3, "Promotor no subió evidencia": 2}, "wa": {"Correcta": 3, "Promotor no subió evidencia": 2}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-12": {"total": 3, "qr": {"Promotor no subió evidencia": 2, "Correcta": 1}, "wa": {"Promotor no subió evidencia": 2, "Correcta": 1}}}}, "20.0|6215|SAMS Patria": {"region": "20.0", "determinante": "6215", "sede": "SAMS Patria", "total": 6, "qr": {"Correcta": 6}, "wa": {"Correcta": 4, "Promotor no subió evidencia": 2}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Promotor no subió evidencia": 2}}, "2026-04-12": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 4}}}}, "20.0|6217|SAMS Zamora": {"region": "20.0", "determinante": "6217", "sede": "SAMS Zamora", "total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-12": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}}}, "20.0|6219|SAMS Independencia": {"region": "20.0", "determinante": "6219", "sede": "SAMS Independencia", "total": 5, "qr": {"Correcta": 5}, "wa": {"Correcta": 3, "Promotor no subió evidencia": 2}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Promotor no subió evidencia": 2}}, "2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-12": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}}}, "20.0|6226|SAMS La Piedad": {"region": "20.0", "determinante": "6226", "sede": "SAMS La Piedad", "total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 3, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-12": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}}}, "20.0|6258|SAMS Periférico (Iteso)": {"region": "20.0", "determinante": "6258", "sede": "SAMS Periférico (Iteso)", "total": 3, "qr": {"Cliente no llenó la encuesta": 1, "Correcta": 1, "Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 3}, "by_date": {"2026-04-10": {"total": 3, "qr": {"Cliente no llenó la encuesta": 1, "Correcta": 1, "Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 3}}}}, "20.0|6297|SAMS Morelia Reforma": {"region": "20.0", "determinante": "6297", "sede": "SAMS Morelia Reforma", "total": 4, "qr": {"Promotor no subió evidencia": 2, "Correcta": 2}, "wa": {"Correcta": 2, "Promotor no subió evidencia": 1, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}}}, "20.0|6307|SAMS Ciudad Guzman": {"region": "20.0", "determinante": "6307", "sede": "SAMS Ciudad Guzman", "total": 9, "qr": {"Promotor no subió evidencia": 5, "Correcta": 4}, "wa": {"Correcta": 5, "Promotor no subió evidencia": 3, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Promotor no subió evidencia": 2}, "wa": {"Promotor no subió evidencia": 2}}, "2026-04-11": {"total": 3, "qr": {"Promotor no subió evidencia": 2, "Correcta": 1}, "wa": {"Correcta": 2, "Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 4, "qr": {"Correcta": 3, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 3, "Promotor no subió evidencia": 1}}}}, "20.0|6834|WM Sahuayo": {"region": "20.0", "determinante": "6834", "sede": "WM Sahuayo", "total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}, "by_date": {"2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-12": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}}}, "20.0|0-20|CC Galerias Zacatecas": {"region": "20.0", "determinante": "0-20", "sede": "CC Galerias Zacatecas", "total": 6, "qr": {"Correcta": 6}, "wa": {"Correcta": 3, "Promotor no subió evidencia": 2, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-10": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Promotor no subió evidencia": 2, "Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}}}, "21.0|1007|WM Harold pape monclova": {"region": "21.0", "determinante": "1007", "sede": "WM Harold pape monclova", "total": 5, "qr": {"Correcta": 4, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 4, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-11": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 2, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 2, "Promotor no subió evidencia": 1}}}}, "21.0|2375|WM Torreon": {"region": "21.0", "determinante": "2375", "sede": "WM Torreon", "total": 13, "qr": {"Correcta": 13}, "wa": {"Correcta": 10, "Promotor no subió evidencia": 3}, "by_date": {"2026-04-10": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Promotor no subió evidencia": 3, "Correcta": 1}}, "2026-04-11": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-12": {"total": 7, "qr": {"Correcta": 7}, "wa": {"Correcta": 7}}}}, "21.0|3211|WM Independencia Torreon": {"region": "21.0", "determinante": "3211", "sede": "WM Independencia Torreon", "total": 12, "qr": {"Correcta": 12}, "wa": {"Correcta": 9, "Promotor no subió evidencia": 3}, "by_date": {"2026-04-10": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Promotor no subió evidencia": 3, "Correcta": 1}}, "2026-04-11": {"total": 5, "qr": {"Correcta": 5}, "wa": {"Correcta": 5}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}}}, "21.0|4819|WM Fuentes Piedras Negras": {"region": "21.0", "determinante": "4819", "sede": "WM Fuentes Piedras Negras", "total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 3, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-12": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}}}, "21.0|5334|WM Cd. Acuña": {"region": "21.0", "determinante": "5334", "sede": "WM Cd. Acuña", "total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 3, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}}}, "21.0|6515|WM Torreon Norte": {"region": "21.0", "determinante": "6515", "sede": "WM Torreon Norte", "total": 7, "qr": {"Promotor no subió evidencia": 4, "Correcta": 3}, "wa": {"Promotor no subió evidencia": 3, "Correcta": 3, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Promotor no subió evidencia": 2}, "wa": {"Promotor no subió evidencia": 2}}, "2026-04-11": {"total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 4, "qr": {"Correcta": 3, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 3, "Promotor no subió evidencia": 1}}}}, "22.0|1138|WM Delicias": {"region": "22.0", "determinante": "1138", "sede": "WM Delicias", "total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}, "by_date": {"2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-12": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}}}, "22.0|1170|WM Parral": {"region": "22.0", "determinante": "1170", "sede": "WM Parral", "total": 2, "qr": {"Error/No subida": 1, "Correcta": 1}, "wa": {"Promotor no subió evidencia": 1, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Error/No subida": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Sin evidencia (razón no especificada)": 1}}}}, "22.0|1623|WM Cd. Cuauhtemoc": {"region": "22.0", "determinante": "1623", "sede": "WM Cd. Cuauhtemoc", "total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}}}, "22.0|1656|WM Club De Golf": {"region": "22.0", "determinante": "1656", "sede": "WM Club De Golf", "total": 5, "qr": {"Correcta": 4, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 4, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}}}, "22.0|2302|WM Chihuahua": {"region": "22.0", "determinante": "2302", "sede": "WM Chihuahua", "total": 5, "qr": {"Correcta": 4, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 4, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 3, "qr": {"Correcta": 2, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 2, "Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}}}, "22.0|3033|WM Fuentes Mares": {"region": "22.0", "determinante": "3033", "sede": "WM Fuentes Mares", "total": 6, "qr": {"Correcta": 5, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 5, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-12": {"total": 4, "qr": {"Correcta": 3, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 3, "Promotor no subió evidencia": 1}}}}, "22.0|3358|WM Cordilleras": {"region": "22.0", "determinante": "3358", "sede": "WM Cordilleras", "total": 5, "qr": {"Correcta": 5}, "wa": {"Correcta": 5}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}}}, "22.0|5728|WM Norte 2000": {"region": "22.0", "determinante": "5728", "sede": "WM Norte 2000", "total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}, "by_date": {"2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}}}, "22.0|6234|SAMS Cuauhtémoc": {"region": "22.0", "determinante": "6234", "sede": "SAMS Cuauhtémoc", "total": 5, "qr": {"Correcta": 5}, "wa": {"Promotor no subió evidencia": 3, "Correcta": 2}, "by_date": {"2026-04-10": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Promotor no subió evidencia": 3}}, "2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-12": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}}}, "22.0|6249|SAMS Delicias": {"region": "22.0", "determinante": "6249", "sede": "SAMS Delicias", "total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}, "by_date": {"2026-04-12": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}}}, "22.0|8240|SAMS Chihuahua": {"region": "22.0", "determinante": "8240", "sede": "SAMS Chihuahua", "total": 5, "qr": {"Promotor no subió evidencia": 3, "Correcta": 2}, "wa": {"Promotor no subió evidencia": 3, "Correcta": 2}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Promotor no subió evidencia": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-12": {"total": 3, "qr": {"Promotor no subió evidencia": 2, "Correcta": 1}, "wa": {"Promotor no subió evidencia": 2, "Correcta": 1}}}}, "23.0|890|WM Garita": {"region": "23.0", "determinante": "890", "sede": "WM Garita", "total": 6, "qr": {"Correcta": 6}, "wa": {"Correcta": 5, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Promotor no subió evidencia": 1}}, "2026-04-11": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}}}, "23.0|2540|WM Victoria Centro": {"region": "23.0", "determinante": "2540", "sede": "WM Victoria Centro", "total": 6, "qr": {"Correcta": 6}, "wa": {"Correcta": 6}, "by_date": {"2026-04-10": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 4}}, "2026-04-12": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}}}, "23.0|3091|WM Ave. Reforma": {"region": "23.0", "determinante": "3091", "sede": "WM Ave. Reforma", "total": 17, "qr": {"Correcta": 16, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 13, "Promotor no subió evidencia": 3, "Sin evidencia (razón no especificada)": 1}, "by_date": {"2026-04-10": {"total": 6, "qr": {"Correcta": 6}, "wa": {"Promotor no subió evidencia": 3, "Correcta": 3}}, "2026-04-11": {"total": 7, "qr": {"Correcta": 6, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 6, "Sin evidencia (razón no especificada)": 1}}, "2026-04-12": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 4}}}}, "23.0|3630|WM Las Adelitas": {"region": "23.0", "determinante": "3630", "sede": "WM Las Adelitas", "total": 6, "qr": {"Correcta": 6}, "wa": {"Correcta": 5, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-11": {"total": 1, "qr": {"Correcta": 1}, "wa": {"Correcta": 1}}, "2026-04-12": {"total": 4, "qr": {"Correcta": 4}, "wa": {"Correcta": 3, "Promotor no subió evidencia": 1}}}}, "23.0|3719|WM Matamoros": {"region": "23.0", "determinante": "3719", "sede": "WM Matamoros", "total": 7, "qr": {"Correcta": 6, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 6, "Promotor no subió evidencia": 1}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Promotor no subió evidencia": 1, "Correcta": 1}, "wa": {"Promotor no subió evidencia": 1, "Correcta": 1}}, "2026-04-11": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}, "2026-04-12": {"total": 3, "qr": {"Correcta": 3}, "wa": {"Correcta": 3}}}}, "23.0|4801|SAMS Cd. Victoria": {"region": "23.0", "determinante": "4801", "sede": "SAMS Cd. Victoria", "total": 8, "qr": {"Correcta": 5, "Promotor no subió evidencia": 3}, "wa": {"Promotor no subió evidencia": 3, "Sin evidencia (razón no especificada)": 3, "Correcta": 2}, "by_date": {"2026-04-10": {"total": 2, "qr": {"Promotor no subió evidencia": 1, "Correcta": 1}, "wa": {"Promotor no subió evidencia": 2}}, "2026-04-11": {"total": 4, "qr": {"Promotor no subió evidencia": 2, "Correcta": 2}, "wa": {"Sin evidencia (razón no especificada)": 3, "Promotor no subió evidencia": 1}}, "2026-04-12": {"total": 2, "qr": {"Correcta": 2}, "wa": {"Correcta": 2}}}}, "23.0|4941|SAMS Reynosa": {"region": "23.0", "determinante": "4941", "sede": "SAMS Reynosa", "total": 22, "qr": {"Correcta": 19, "Promotor no subió evidencia": 3}, "wa": {"Correcta": 15, "Promotor no subió evidencia": 6, "Evidencia errónea": 1}, "by_date": {"2026-04-10": {"total": 8, "qr": {"Correcta": 6, "Promotor no subió evidencia": 2}, "wa": {"Promotor no subió evidencia": 6, "Correcta": 2}}, "2026-04-11": {"total": 5, "qr": {"Correcta": 5}, "wa": {"Correcta": 4, "Evidencia errónea": 1}}, "2026-04-12": {"total": 9, "qr": {"Correcta": 8, "Promotor no subió evidencia": 1}, "wa": {"Correcta": 9}}}}, "23.0|4950|SAMS Matamoros": {"region": "23.0", "determinante": "4950", "sede": "SAMS Matamoros", "total": 19, "qr": {"Correcta": 19}, "wa": {"Correcta": 16, "Promotor no subió evidencia": 3}, "by_date": {"2026-04-10": {"total": 5, "qr": {"Correcta": 5}, "wa": {"Promotor no subió evidencia": 3, "Correcta": 2}}, "2026-04-11": {"total": 9, "qr": {"Correcta": 9}, "wa": {"Correcta": 9}}, "2026-04-12": {"total": 5, "qr": {"Correcta": 5}, "wa": {"Correcta": 5}}}}}, "por_producto": {"SAMS_CLUB_INVEX": {"total": 463, "qr": {"Correcta": 408, "Promotor no subió evidencia": 54, "Cliente no llenó la encuesta": 1}, "wa": {"Correcta": 341, "Promotor no subió evidencia": 96, "Sin evidencia (razón no especificada)": 19, "Evidencia errónea": 7}}, "VOLARIS0": {"total": 6, "qr": {"Correcta": 6}, "wa": {"Correcta": 3, "Promotor no subió evidencia": 2, "Sin evidencia (razón no especificada)": 1}}, "WALMART_INVEX": {"total": 399, "qr": {"Correcta": 342, "Promotor no subió evidencia": 55, "Error/No subida": 1, "Evidencia errónea": 1}, "wa": {"Correcta": 290, "Promotor no subió evidencia": 86, "Sin evidencia (razón no especificada)": 18, "Evidencia errónea": 5}}}, "totales": {"registros": 868, "qr": {"Correcta": 756, "Promotor no subió evidencia": 109, "Cliente no llenó la encuesta": 1, "Error/No subida": 1, "Evidencia errónea": 1}, "wa": {"Correcta": 634, "Promotor no subió evidencia": 184, "Sin evidencia (razón no especificada)": 38, "Evidencia errónea": 12}}};
+
+const CL = {
+  "Correcta":"#4caf78",
+  "Promotor no subió evidencia":"#e05c5c",
+  "Evidencia errónea":"#e8943a",
+  "Cliente no llenó la encuesta":"#f0c040",
+  "Sin evidencia (razón no especificada)":"#f0c040",
+  "Error/No subida":"#c0392b",
+  "Sin dato":"#b8bcc4"
+};
+const FL = {"2026-04-10":"10 abr","2026-04-11":"11 abr","2026-04-12":"12 abr"};
+const charts = {};
+
+// ── Opciones de datalabels para barras apiladas (muestra % si > 0) ──
+const DL_STACKED = {
+  display: ctx => ctx.dataset.data[ctx.dataIndex] > 0,
+  formatter: (val, ctx) => {
+    const total = ctx.chart.data.datasets.reduce((s, ds) => s + (ds.data[ctx.dataIndex] || 0), 0);
+    const pct = total ? Math.round(val / total * 100) : 0;
+    return pct >= 8 ? pct + '%' : '';
+  },
+  color: '#fff',
+  font: { size: 10, weight: '600' },
+  anchor: 'center',
+  align: 'center',
+};
+
+// ── Opciones de datalabels para barras simples (% sobre la barra) ──
+const DL_SINGLE = {
+  display: ctx => ctx.dataset.data[ctx.dataIndex] > 0,
+  formatter: val => val + '%',
+  color: '#444',
+  font: { size: 10, weight: '600' },
+  anchor: 'end',
+  align: 'top',
+  offset: 2,
+};
+
+// ── Opciones de datalabels para donut (% en el sector) ──
+const DL_DONUT = {
+  display: ctx => {
+    const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+    const pct = total ? Math.round(ctx.dataset.data[ctx.dataIndex] / total * 100) : 0;
+    return pct >= 5;
+  },
+  formatter: (val, ctx) => {
+    const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+    return total ? Math.round(val / total * 100) + '%' : '';
+  },
+  color: '#fff',
+  font: { size: 11, weight: '700' },
+};
+
+function mk(id, cfg) {
+  if (charts[id]) charts[id].destroy();
+  const el = document.getElementById(id);
+  if (!el) return;
+  charts[id] = new Chart(el, cfg);
+}
+function pct(a, t) { return t ? Math.round(a / t * 100) : 0; }
+function cls(v)    { return v >= 80 ? 'ok' : v >= 50 ? 'mid' : 'bad'; }
+function gv(o, k)  { return (o && o[k]) || 0; }
+
+function showTab(t, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.getElementById(t).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── KPIs ──
+function renderKPIs() {
+  const t = D.totales;
+  const qrOk = gv(t.qr, 'Correcta'), waOk = gv(t.wa, 'Correcta'), sd = gv(t.qr, 'Sin dato');
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><div class="kpi-val">${t.registros}</div><div class="kpi-lbl">Registros analizados</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:#4caf78">${pct(qrOk, t.registros)}%</div><div class="kpi-lbl">Evidencia QR correcta</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:#4caf78">${pct(waOk, t.registros)}%</div><div class="kpi-lbl">Evidencia WhatsApp correcta</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:#888">${sd}</div><div class="kpi-lbl">Sin dato registrado</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:#e05c5c">${gv(t.qr, 'Promotor no subió evidencia')}</div><div class="kpi-lbl">QR sin subir (promotor)</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:#e05c5c">${gv(t.wa, 'Promotor no subió evidencia')}</div><div class="kpi-lbl">WhatsApp sin subir (promotor)</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:#e8943a">${gv(t.wa, 'Evidencia errónea')}</div><div class="kpi-lbl">Evidencia errónea WhatsApp</div></div>
+  `;
+}
+
+// ── Leyenda ──
+function legend(id, obj) {
+  const total = Object.values(obj).reduce((a, b) => a + b, 0);
+  document.getElementById(id).innerHTML = Object.entries(obj).map(([k, v]) =>
+    `<span class="leg"><span class="lsq" style="background:${CL[k] || '#999'}"></span>${k}: ${v} (${pct(v, total)}%)</span>`
+  ).join('');
+}
+
+// ── General ──
+function renderGeneral() {
+  const qr = D.totales.qr, wa = D.totales.wa;
+  legend('leg-qr', qr); legend('leg-wa', wa);
+
+  const donutCfg = (obj) => ({
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(obj),
+      datasets: [{
+        data: Object.values(obj),
+        backgroundColor: Object.keys(obj).map(k => CL[k] || '#999'),
+        borderWidth: 2,
+        hoverOffset: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        datalabels: DL_DONUT
+      }
+    }
+  });
+  mk('c-qr', donutCfg(qr));
+  mk('c-wa', donutCfg(wa));
+
+  mk('c-gen-bar', {
+    type: 'bar',
+    data: {
+      labels: D.fechas.map(f => FL[f]),
+      datasets: [
+        { label: 'Total registros',     data: D.fechas.map(f => gv(D.general[f], 'total')),           backgroundColor: '#5b8dd9', borderRadius: 4 },
+        { label: 'Ev. QR correcta',     data: D.fechas.map(f => gv(D.general[f].qr, 'Correcta')),    backgroundColor: '#4caf78', borderRadius: 4 },
+        { label: 'Ev. WhatsApp correcta',data: D.fechas.map(f => gv(D.general[f].wa, 'Correcta')),   backgroundColor: '#81c784', borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'top', labels: { boxWidth: 10, font: { size: 12 } } },
+        datalabels: {
+          display: ctx => ctx.dataset.data[ctx.dataIndex] > 0,
+          formatter: val => val,
+          color: '#fff', font: { size: 10, weight: '600' },
+          anchor: 'center', align: 'center'
+        }
+      },
+      scales: { x: { ticks: { autoSkip: false } }, y: { beginAtZero: true } }
+    }
+  });
+}
+
+// ── Región ──
+function renderRegion() {
+  const regs = D.regiones;
+  const ep = regs.map(r => pct(gv(D.por_region_total[r].qr, 'Correcta'), D.por_region_total[r].total));
+  const wp = regs.map(r => pct(gv(D.por_region_total[r].wa, 'Correcta'), D.por_region_total[r].total));
+
+  mk('c-reg-bar', {
+    type: 'bar',
+    data: {
+      labels: regs.map(r => 'R' + r),
+      datasets: [
+        { label: '% Ev. QR correcta',       data: ep, backgroundColor: '#5b8dd9', borderRadius: 3 },
+        { label: '% Ev. WhatsApp correcta',  data: wp, backgroundColor: '#81c784', borderRadius: 3 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'top', labels: { boxWidth: 10 } },
+        datalabels: {
+          display: ctx => ctx.dataset.data[ctx.dataIndex] > 0,
+          formatter: val => val + '%',
+          color: '#fff', font: { size: 9, weight: '700' },
+          anchor: 'center', align: 'center'
+        }
+      },
+      scales: {
+        y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } },
+        x: { ticks: { autoSkip: false } }
+      }
+    }
+  });
+
+  document.getElementById('t-reg').innerHTML =
+    '<tr><th>Región</th><th>Total</th><th>QR correcta</th><th>% QR</th><th>WhatsApp correcta</th><th>% WhatsApp</th></tr>' +
+    regs.map((r, i) => {
+      const d = D.por_region_total[r];
+      return `<tr><td>Reg ${r}</td><td>${d.total}</td><td>${gv(d.qr,'Correcta')}</td><td><span class="${cls(ep[i])}">${ep[i]}%</span></td><td>${gv(d.wa,'Correcta')}</td><td><span class="${cls(wp[i])}">${wp[i]}%</span></td></tr>`;
+    }).join('');
+}
+
+// ── Evolución ──
+function populateRegSelects() {
+  ['sel-reg', 'sel-reg-sede'].forEach(id => {
+    document.getElementById(id).innerHTML = D.regiones.map(r => `<option value="${r}">Región ${r}</option>`).join('');
+  });
+}
+
+function renderEvol() {
+  const reg = document.getElementById('sel-reg').value;
+  const met = document.getElementById('sel-met').value;
+  const rd  = D.por_region[reg] || {};
+  const cats = [...new Set(D.fechas.flatMap(f => Object.keys(rd[f]?.[met] || {})))];
+
+  mk('c-evol', {
+    type: 'bar',
+    data: {
+      labels: D.fechas.map(f => FL[f]),
+      datasets: cats.map(c => ({
+        label: c,
+        data: D.fechas.map(f => gv(rd[f]?.[met], c)),
+        backgroundColor: CL[c] || '#999',
+        borderRadius: 3
+      }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'top', labels: { boxWidth: 10, font: { size: 11 } } },
+        datalabels: DL_STACKED
+      },
+      scales: {
+        x: { stacked: true, ticks: { autoSkip: false } },
+        y: { stacked: true, beginAtZero: true }
+      }
+    }
+  });
+  renderComp();
+}
+
+function renderComp() {
+  const fecha = document.getElementById('sel-fecha').value;
+  const met   = document.getElementById('sel-met2').value;
+  const regs  = D.regiones.filter(r => D.por_region[r]?.[fecha]);
+  const pcts  = regs.map(r => { const d = D.por_region[r][fecha]; return pct(gv(d[met], 'Correcta'), d.total); });
+
+  mk('c-comp', {
+    type: 'bar',
+    data: {
+      labels: regs.map(r => 'R' + r),
+      datasets: [{
+        label: '% correctas',
+        data: pcts,
+        backgroundColor: pcts.map(v => v >= 80 ? '#4caf78' : v >= 50 ? '#f0c040' : '#e05c5c'),
+        borderRadius: 3
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        datalabels: DL_SINGLE
+      },
+      scales: {
+        y: { beginAtZero: true, max: 110, ticks: { callback: v => v <= 100 ? v + '%' : '' } },
+        x: { ticks: { autoSkip: false } }
+      }
+    }
+  });
+}
+
+// ── Sedes ──
+function renderSedes() {
+  const reg  = document.getElementById('sel-reg-sede').value;
+  const keys = Object.keys(D.por_sede).filter(k => D.por_sede[k].region === reg);
+  if (!keys.length) { document.getElementById('t-sede').innerHTML = '<tr><td>Sin datos</td></tr>'; return; }
+  const sedes = keys.map(k => D.por_sede[k]);
+  const h = Math.max(300, sedes.length * 42 + 80);
+  document.getElementById('sede-wrap').style.height = h + 'px';
+  const ep = sedes.map(s => pct(gv(s.qr, 'Correcta'), s.total));
+  const wp = sedes.map(s => pct(gv(s.wa, 'Correcta'), s.total));
+
+  mk('c-sede', {
+    type: 'bar',
+    data: {
+      labels: sedes.map(s => s.sede),
+      datasets: [
+        { label: '% Ev. QR',       data: ep, backgroundColor: '#5b8dd9', borderRadius: 3 },
+        { label: '% Ev. WhatsApp', data: wp, backgroundColor: '#81c784', borderRadius: 3 }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'top', labels: { boxWidth: 10 } },
+        datalabels: {
+          display: ctx => ctx.dataset.data[ctx.dataIndex] > 0,
+          formatter: val => val + '%',
+          color: '#fff', font: { size: 9, weight: '700' },
+          anchor: 'center', align: 'center'
+        }
+      },
+      scales: {
+        x: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } },
+        y: { ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+
+  document.getElementById('t-sede').innerHTML =
+    '<tr><th>Det.</th><th>Sede</th><th>Total</th><th>% Ev. QR</th><th>% Ev. WhatsApp</th></tr>' +
+    sedes.map((s, i) => `<tr><td>${s.determinante}</td><td>${s.sede}</td><td>${s.total}</td><td><span class="${cls(ep[i])}">${ep[i]}%</span></td><td><span class="${cls(wp[i])}">${wp[i]}%</span></td></tr>`).join('');
+}
+
+// ── Productos ──
+function renderProductos() {
+  const prods = Object.keys(D.por_producto);
+  const aqr   = [...new Set(prods.flatMap(p => Object.keys(D.por_producto[p].qr)))];
+  const awa   = [...new Set(prods.flatMap(p => Object.keys(D.por_producto[p].wa)))];
+
+  const stackedCfg = (cats, metKey) => ({
+    type: 'bar',
+    data: {
+      labels: prods,
+      datasets: cats.map(c => ({
+        label: c,
+        data: prods.map(p => gv(D.por_producto[p][metKey], c)),
+        backgroundColor: CL[c] || '#999',
+        borderRadius: 3
+      }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'top', labels: { boxWidth: 8, font: { size: 10 } } },
+        datalabels: DL_STACKED
+      },
+      scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+    }
+  });
+
+  mk('c-pqr', stackedCfg(aqr, 'qr'));
+  mk('c-pwa', stackedCfg(awa, 'wa'));
+}
+
+// ── Init ──
+renderKPIs();
+renderGeneral();
+renderRegion();
+populateRegSelects();
+renderEvol();
+renderSedes();
+renderProductos();
+</script>
+</body>
+</html>
